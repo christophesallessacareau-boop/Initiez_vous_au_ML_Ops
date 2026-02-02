@@ -1,0 +1,25 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.pyc
+
+# Virtual environments
+venv/
+venv*/
+.env
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Data (souvent lourd / sensible)
+data/
+*.csv
+*.parquet
+*.zip
+
+# OS / IDE
+.vscode/
+.idea/
+.DS_Store
