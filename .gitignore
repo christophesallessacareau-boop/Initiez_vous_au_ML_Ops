@@ -13,7 +13,7 @@ venv*/
 # Jupyter
 .ipynb_checkpoints/
 
-# Data (souvent lourd / sensible)
+# Data
 data/
 *.csv
 *.parquet
@@ -23,3 +23,6 @@ data/
 .vscode/
 .idea/
 .DS_Store
+
+
+*.pdf
