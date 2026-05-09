@@ -20,6 +20,7 @@ import mlflow.models
 import pandas as pd
 from fastapi import FastAPI, HTTPException, Security, status
 from fastapi.security import APIKeyHeader
+from fastapi.responses import RedirectResponse
 from pydantic import BaseModel, Field, field_validator
 
 # CHARGEMENT DU .env 
@@ -40,7 +41,7 @@ MLFLOW_TRACKING_URI: str = os.getenv(
 )
 MODEL_PATH: str = os.getenv(
     "MODEL_PATH",
-    r"C:/Users/chris/Initiez_vous_au_ML_Ops/mlruns/1/models/m-736d091d85ae4f39b54fedb7a32230d7/artifacts",
+    r"C:/Users/chris/Initiez_vous_au_ML_Ops/mlruns/1/models/m-75f49439c2764e6e91a4371402c42cdc/artifacts",
 )
 
 
@@ -61,7 +62,8 @@ if not API_KEY_VALUE:
 app_state: dict = {}
 
 
-# LIFESPAN : chargement unique au démarrage
+# LIFESPAN : chargement du modèle au démarrage,
+# modèle stocké dans app_state. Toutes les requêtes le réutilisent sans rechargement
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -125,6 +127,7 @@ class CreditFeatures(BaseModel):
     """
     Caractéristiques financières du client.
     Toutes les valeurs numériques sont validées avant la prédiction.
+    Les erreurs 422 sont automatiquement documentées dans Swagger
     """
 
     # --- Features principales ---
@@ -160,6 +163,10 @@ class CreditFeatures(BaseModel):
             "EXT_SOURCE_3": 0.61,
             "AMT_ANNUITY": 25000.0,
             "AMT_GOODS_PRICE": 450000.0,
+            "DAYS_ID_PUBLISH": -2000,
+            "DAYS_LAST_PHONE_CHANGE": -1000,
+            "CODE_GENDER_M": 1,
+            "NAME_EDUCATION_TYPE_Higher_education": 0
         }
     }}
 
@@ -171,9 +178,16 @@ class PredictionResponse(BaseModel):
     run_id: str = Field(..., description="Run MLflow utilisé pour la prédiction")
 
 
+
 # ---------------------------------------------------------------------------
 # ENDPOINTS
 # ---------------------------------------------------------------------------
+
+# Redirection racine vers /docs
+@app.get("/", include_in_schema=False)
+def root():
+    return RedirectResponse(url="/docs")
+
 
 @app.get("/health", tags=["Monitoring"])
 def health():
@@ -186,17 +200,17 @@ def health():
         "threshold": app_state.get("threshold", None),
     }
 
-
+# endpoint protégé par X-API-Key dans l'en-tête HTTP
 @app.get("/model-info", tags=["Monitoring"],
          summary="Métadonnées du modèle chargé")
 def model_info(api_key: str = Security(verify_api_key)):
     """Retourne les informations du modèle actif (requiert X-API-Key)."""
     return {
-        "model_id": "m-736d091d85ae4f39b54fedb7a32230d7",
-        "run_id": "e43dd12fde914ae98f3ccd9b6ee3a634",
+        "model_id": "m-75f49439c2764e6e91a4371402c42cdc",
+        "run_id": "47910a657cb04891bd1411f4c486d4e5",
         "model_path": MODEL_PATH,
         "threshold": app_state.get("threshold"),
-        "nb_features": 12,
+        "nb_features": 13,
     }
 
 
@@ -213,6 +227,8 @@ def model_info(api_key: str = Security(verify_api_key)):
         500: {"description": "Erreur interne lors de la prédiction"},
     },
 )
+
+# endpoint protégé par X-API-Key dans l'en-tête HTTP
 def predict(
     features: CreditFeatures,
     api_key: str = Security(verify_api_key),
@@ -251,7 +267,7 @@ def predict(
             default_probability=round(proba, 4),
             risk_level="HIGH" if proba > threshold else "LOW",
             threshold_used=round(threshold, 4),
-            model_id="m-736d091d85ae4f39b54fedb7a32230d7",
+            run_id="47910a657cb04891bd1411f4c486d4e5",
         )
 
     except HTTPException:
