@@ -39,7 +39,7 @@ jobs:
       - name: Vérification du linting (flake8)
         run: |
           pip install flake8
-          flake8 main.py --max-line-length=100 --ignore=E501,W503
+          flake8 api.py --max-line-length=100 --ignore=E501,W503
 
   # ──────────────────────────────────────────────
   # ÉTAPE 2 : TEST — pytest avec mocks MLflow
@@ -70,12 +70,12 @@ jobs:
         run: pip install -r requirements.txt pytest httpx
 
       - name: Lancement des tests
-        run: pytest test_main.py -v --tb=short
+        run: pytest test_api.py -v --tb=short
 
       - name: Rapport de couverture
         run: |
           pip install pytest-cov
-          pytest test_main.py --cov=main --cov-report=term-missing
+          pytest test_api.py --cov=api --cov-report=term-missing
 
   # ──────────────────────────────────────────────
   # ÉTAPE 3 : DEPLOY — uniquement sur push main
