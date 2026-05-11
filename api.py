@@ -34,7 +34,6 @@ logger = logging.getLogger(__name__)
 
 
 # CONFIGURATION  (valeurs par défaut et variables d'environnement)
-
 MLFLOW_TRACKING_URI: str = os.getenv(
     "MLFLOW_TRACKING_URI",
     r"file:///C:/Users/chris/Initiez_vous_au_ML_Ops/mlruns",
@@ -46,11 +45,8 @@ MODEL_PATH: str = os.getenv(
 
 
 # Clé API pour sécuriser les endpoints (à stocker en secret / variable d'env)
-
-API_KEY_VALUE: str = os.getenv(
-    "API_KEY", "chargement de la secret key depuis .env")
+API_KEY_VALUE: str = os.getenv("API_KEY")
 API_KEY_NAME: str = "X-API-Key"
-
 if not API_KEY_VALUE:
     raise RuntimeError(
         "Variable d'environnement API_KEY manquante. "
@@ -74,27 +70,22 @@ async def lifespan(app: FastAPI):
     logger.info(f"MODEL_PATH : {MODEL_PATH}")
     try:
         mlflow.set_tracking_uri(MLFLOW_TRACKING_URI)
-
         # Chargement direct par chemin fichier (sans run_id)
         app_state["model"] = mlflow.pyfunc.load_model(MODEL_PATH)
         logger.info(" Modèle chargé avec succès.")
-
         # Récupération du seuil optimal depuis le wrapper sklearn
         inner = app_state["model"]._model_impl
         app_state["threshold"] = float(getattr(inner, "best_threshold_", 0.5))
         logger.info(f"Seuil de décision : {app_state['threshold']:.4f}")
-
     except Exception as exc:
         logger.error(f" Impossible de charger le modèle : {exc}")
         raise RuntimeError(f"Échec du chargement du modèle : {exc}") from exc
-
-    yield  # L'API tourne ici
+    yield
 
     app_state.clear()  # nettoyage à l'arrêt
     logger.info("API arrêtée — ressources libérées.")
 
-
-# APPLICATION API
+  # APPLICATION API
 
 app = FastAPI(
     title="Home Credit Default Risk — API de scoring",
@@ -109,7 +100,6 @@ app = FastAPI(
 
 
 # SÉCURITÉ  — API Key
-
 api_key_header = APIKeyHeader(name=API_KEY_NAME, auto_error=False)
 
 
@@ -220,9 +210,8 @@ def health():
         "threshold": app_state.get("threshold", None),
     }
 
+
 # endpoint protégé par X-API-Key dans l'en-tête HTTP
-
-
 @app.get("/model-info", tags=["Monitoring"],
          summary="Métadonnées du modèle chargé")
 def model_info(api_key: str = Security(verify_api_key)):
@@ -266,7 +255,6 @@ def predict(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Modèle non disponible. Vérifiez les logs de démarrage.",
         )
-
     try:
         df = pd.DataFrame([features.model_dump()])
         logger.info(f"Prédiction pour : {df.to_dict(orient='records')[0]}")
