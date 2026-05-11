@@ -70,12 +70,12 @@ jobs:
         run: pip install -r requirements.txt pytest httpx
 
       - name: Lancement des tests
-        run: pytest test_api.py -v --tb=short
+        run: pytest tests/test_api.py -v --tb=short
 
       - name: Rapport de couverture
         run: |
           pip install pytest-cov
-          pytest test_api.py --cov=api --cov-report=term-missing
+          pytest tests/test_api.py --cov=api --cov-report=term-missing
 
   # ──────────────────────────────────────────────
   # ÉTAPE 3 : DEPLOY — uniquement sur push main
