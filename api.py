@@ -23,7 +23,7 @@ from fastapi.security import APIKeyHeader
 from fastapi.responses import RedirectResponse
 from pydantic import BaseModel, Field, field_validator
 
-# CHARGEMENT DU .env 
+# CHARGEMENT DU .env
 load_dotenv()
 
 
@@ -47,7 +47,8 @@ MODEL_PATH: str = os.getenv(
 
 # Clé API pour sécuriser les endpoints (à stocker en secret / variable d'env)
 
-API_KEY_VALUE: str = os.getenv("API_KEY", "chargement de la secret key depuis .env")
+API_KEY_VALUE: str = os.getenv(
+    "API_KEY", "chargement de la secret key depuis .env")
 API_KEY_NAME: str = "X-API-Key"
 
 if not API_KEY_VALUE:
@@ -58,12 +59,14 @@ if not API_KEY_VALUE:
 
 
 # modèle + métadonnées chargés une seule fois au démarrage, stockés en RAM
-# recommandée par FastAPI: toutes les requêtes l’utilisent sans recharger le modèle
+# recommandée par FastAPI: toutes les requêtes l’utilisent sans recharger
+# le modèle
 app_state: dict = {}
 
 
 # LIFESPAN : chargement du modèle au démarrage,
-# modèle stocké dans app_state. Toutes les requêtes le réutilisent sans rechargement
+# modèle stocké dans app_state. Toutes les requêtes le réutilisent sans
+# rechargement
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -71,23 +74,23 @@ async def lifespan(app: FastAPI):
     logger.info(f"MODEL_PATH : {MODEL_PATH}")
     try:
         mlflow.set_tracking_uri(MLFLOW_TRACKING_URI)
- 
+
         # Chargement direct par chemin fichier (sans run_id)
         app_state["model"] = mlflow.pyfunc.load_model(MODEL_PATH)
         logger.info(" Modèle chargé avec succès.")
- 
+
         # Récupération du seuil optimal depuis le wrapper sklearn
         inner = app_state["model"]._model_impl
         app_state["threshold"] = float(getattr(inner, "best_threshold_", 0.5))
         logger.info(f"Seuil de décision : {app_state['threshold']:.4f}")
- 
+
     except Exception as exc:
         logger.error(f" Impossible de charger le modèle : {exc}")
         raise RuntimeError(f"Échec du chargement du modèle : {exc}") from exc
- 
+
     yield  # L'API tourne ici
- 
-    app_state.clear() # nettoyage à l'arrêt
+
+    app_state.clear()  # nettoyage à l'arrêt
     logger.info("API arrêtée — ressources libérées.")
 
 
@@ -131,25 +134,39 @@ class CreditFeatures(BaseModel):
     """
 
     # --- Features principales ---
-    AMT_CREDIT: float = Field(..., description="Montant du crédit demandé", gt=0)
-    AMT_INCOME_TOTAL: float = Field(..., description="Revenu annuel total", gt=0)
+    AMT_CREDIT: float = Field(...,
+                              description="Montant du crédit demandé",
+                              gt=0)
+    AMT_INCOME_TOTAL: float = Field(...,
+                                    description="Revenu annuel total",
+                                    gt=0)
     DAYS_BIRTH: int = Field(..., description="Âge en jours (négatif)", lt=0)
     DAYS_EMPLOYED: int = Field(..., description="Ancienneté emploi en jours")
-    EXT_SOURCE_1: Optional[float] = Field(None, description="Score externe 1", ge=0, le=1)
-    EXT_SOURCE_2: Optional[float] = Field(None, description="Score externe 2", ge=0, le=1)
-    EXT_SOURCE_3: Optional[float] = Field(None, description="Score externe 3", ge=0, le=1)
-    AMT_ANNUITY: Optional[float] = Field(None, description="Annuité du crédit", gt=0)
-    AMT_GOODS_PRICE: Optional[float] = Field(None, description="Prix du bien financé", gt=0)
-    DAYS_ID_PUBLISH: Optional[int] = Field(None, description="Jours depuis renouvellement pièce identité")    
-    DAYS_LAST_PHONE_CHANGE: Optional[float] = Field(None, description="Jours depuis dernier changement de téléphone")    
-    CODE_GENDER_M: Optional[int] = Field(None, description="Genre masculin (1=M)", ge=0, le=1)
-    NAME_EDUCATION_TYPE_Higher_education: Optional[int] = Field(None, ge=0, le=1)
+    EXT_SOURCE_1: Optional[float] = Field(
+        None, description="Score externe 1", ge=0, le=1)
+    EXT_SOURCE_2: Optional[float] = Field(
+        None, description="Score externe 2", ge=0, le=1)
+    EXT_SOURCE_3: Optional[float] = Field(
+        None, description="Score externe 3", ge=0, le=1)
+    AMT_ANNUITY: Optional[float] = Field(
+        None, description="Annuité du crédit", gt=0)
+    AMT_GOODS_PRICE: Optional[float] = Field(
+        None, description="Prix du bien financé", gt=0)
+    DAYS_ID_PUBLISH: Optional[int] = Field(
+        None, description="Jours depuis renouvellement pièce identité")
+    DAYS_LAST_PHONE_CHANGE: Optional[float] = Field(
+        None, description="Jours depuis dernier changement de téléphone")
+    CODE_GENDER_M: Optional[int] = Field(
+        None, description="Genre masculin (1=M)", ge=0, le=1)
+    NAME_EDUCATION_TYPE_Higher_education: Optional[int] = Field(
+        None, ge=0, le=1)
 
     @field_validator("DAYS_BIRTH")
     @classmethod
     def birth_must_be_negative(cls, v: int) -> int:
         if v >= 0:
-            raise ValueError("DAYS_BIRTH doit être négatif (exprimé en jours depuis la naissance).")
+            raise ValueError(
+                "DAYS_BIRTH doit être négatif (exprimé en jours depuis la naissance).")
         return v
 
     model_config = {"json_schema_extra": {
@@ -172,11 +189,14 @@ class CreditFeatures(BaseModel):
 
 
 class PredictionResponse(BaseModel):
-    default_probability: float = Field(..., description="Probabilité de défaut [0-1]")
-    risk_level: str = Field(..., description="HIGH si probabilité > seuil, LOW sinon")
-    threshold_used: float = Field(..., description="Seuil de décision appliqué")
-    run_id: str = Field(..., description="Run MLflow utilisé pour la prédiction")
-
+    default_probability: float = Field(...,
+                                       description="Probabilité de défaut [0-1]")
+    risk_level: str = Field(...,
+                            description="HIGH si probabilité > seuil, LOW sinon")
+    threshold_used: float = Field(...,
+                                  description="Seuil de décision appliqué")
+    run_id: str = Field(...,
+                        description="Run MLflow utilisé pour la prédiction")
 
 
 # ---------------------------------------------------------------------------
@@ -201,6 +221,8 @@ def health():
     }
 
 # endpoint protégé par X-API-Key dans l'en-tête HTTP
+
+
 @app.get("/model-info", tags=["Monitoring"],
          summary="Métadonnées du modèle chargé")
 def model_info(api_key: str = Security(verify_api_key)):
@@ -227,7 +249,6 @@ def model_info(api_key: str = Security(verify_api_key)):
         500: {"description": "Erreur interne lors de la prédiction"},
     },
 )
-
 # endpoint protégé par X-API-Key dans l'en-tête HTTP
 def predict(
     features: CreditFeatures,
@@ -250,7 +271,8 @@ def predict(
         df = pd.DataFrame([features.model_dump()])
         logger.info(f"Prédiction pour : {df.to_dict(orient='records')[0]}")
 
-        # predict() sur un pyfunc retourne les probabilités si c'est un classifier
+        # predict() sur un pyfunc retourne les probabilités si c'est un
+        # classifier
         raw = app_state["model"].predict(df)
 
         # Selon la forme du retour (array 1D ou 2D)
