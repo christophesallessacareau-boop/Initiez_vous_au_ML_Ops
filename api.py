@@ -217,12 +217,14 @@ def health():
          summary="Métadonnées du modèle chargé")
 def model_info(api_key: str = Security(verify_api_key)):
     """Retourne les informations du modèle actif (requiert X-API-Key)."""
+    features = list(CreditFeatures.model_config["json_schema_extra"]["example"].keys())
     return {
         "model_id": "m-75f49439c2764e6e91a4371402c42cdc",
         "run_id": "47910a657cb04891bd1411f4c486d4e5",
         "model_path": MODEL_PATH,
         "threshold": app_state.get("threshold"),
-        "nb_features": 13,
+        "nb_features": len(features),
+        "features": features,
     }
 
 

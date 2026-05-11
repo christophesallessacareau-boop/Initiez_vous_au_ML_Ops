@@ -25,10 +25,10 @@ jobs:
       - name: Checkout du code
         uses: actions/checkout@v4
 
-      - name: Setup Python 3.11
+      - name: Setup Python 3.12
         uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
+          python-version: "3.12.8"
           cache: "pip"
 
       - name: Installation des dépendances
@@ -60,10 +60,10 @@ jobs:
       - name: Checkout du code
         uses: actions/checkout@v4
 
-      - name: Setup Python 3.11
+      - name: Setup Python 3.12
         uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
+          python-version: "3.12.8"
           cache: "pip"
 
       - name: Installation des dépendances
@@ -71,6 +71,8 @@ jobs:
 
       - name: Lancement des tests
         run: pytest tests/test_api.py -v --tb=short
+        env:
+          PYTHONPATH: ${{ github.workspace }}
 
       - name: Rapport de couverture
         run: |

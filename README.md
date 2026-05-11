@@ -34,4 +34,53 @@ main.ipynb:
 -recherche du meilleur score (le meilleur AUC et le moindre coût) pour l'estimation de la variable cible.
 -option: données SHAP (visualisation des critères expliquant la variable cible: globalement ou par individu)
 
-NB: AUC du gagnant du concours Kaggle Home Credit default risk = 0.82
+# Partie 2 du projet:  
+Utilisation d'une API (FastAPI) pour prédire la solvabilité d'un client au remboursement d'un crédit; 
+main_light.upynb reprend le modele choisi (CatBoost) pour ce projet et sauvegardé dans MLflow UI;  
+API intégrée dans un conteneur Docker pour la reproductibilité du projet  
+  
+## Prérequis  
+Python 3.12.10  
+Docker et Docker Compose v2  
+Le répertoire `mlruns/` local avec le modèle entraîné  
+Clé API FastAPI (aléatoire de 256 bits) obtenue dans Power Shell par la commande:  
+python -c "import secrets; print(secrets.token_hex(32))"  
+  
+Cloner le Repo:  
+git clone https://github.com/christophesallessacareau-boop/Initiez_vous_au_ML_Ops  
+cd Initiez_vous_au_ML_Ops  
+
+Remarque: pour simuler un environnement propre:  
+  
+Désactiver et supprimer le venv  
+deactivate  
+Remove-Item -Recurse -Force .venv  
+
+Recréer un venv vierge  
+py -3.12 -m venv .venv  
+
+activer l'environnement (sous SE Windows)  
+.venv\Scripts\Activate.ps1  
+
+Réinstaller depuis le requirements.txt  
+pip install -r requirements.txt  
+  
+Vider le cache pip  
+pip cache purge  
+  
+## utiliser une clé avec API FastAPI:  
+pip install python-dotenv  
+dans le fichier .env (.env A RENSEIGNER dans .gitignore):  
+API_KEY=votre_clé_admin  
+Adapter le chemin du modèle dans .env :  
+MODEL_PATH=/models/mlruns/1/models/<votre_model_id>/artifacts  
+
+## Déploiement local (développement)  
+# Build avec docker compose:  
+docker compose up --build -d  
+  
+# ou buid avec docker seul:  
+docker build -t scoring-model .  
+  
+Lancer le conteneur en injectant les clés depuis .env:  
+docker run -p 8000:8000 --env-file .env scoring-model 

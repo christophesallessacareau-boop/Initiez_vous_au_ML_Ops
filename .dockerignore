@@ -1,0 +1,64 @@
+# =============================================================================
+# .dockerignore — exclut les fichiers inutiles du contexte de build Docker
+# =============================================================================
+
+# ── Secrets & configuration locale ────────────────────────────────────────────
+.env
+.env.*
+*.pem
+*.key
+secrets/
+
+# ── Modèles MLflow (montés en volume, pas embarqués dans l'image) ─────────────
+mlruns/
+mlartifacts/
+*.pkl
+*.joblib
+*.h5
+*.pt
+*.onnx
+
+# ── Python ────────────────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*.pyo
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# ── Environnements virtuels ───────────────────────────────────────────────────
+.venv/
+venv/
+env/
+.virtualenv/
+
+# ── Notebooks & données ───────────────────────────────────────────────────────
+*.ipynb
+*.ipynb_checkpoints/
+*.csv
+*.parquet
+*.feather
+data/
+
+# ── IDE & OS ──────────────────────────────────────────────────────────────────
+.vscode/
+.idea/
+*.swp
+.DS_Store
+Thumbs.db
+
+# ── Git ───────────────────────────────────────────────────────────────────────
+.git/
+.gitignore
+.gitattributes
+
+# ── Documentation & tests ─────────────────────────────────────────────────────
+docs/
+tests/
+README*.md
+*.rst
+CHANGELOG*

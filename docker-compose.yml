@@ -1,0 +1,49 @@
+# =============================================================================
+# docker-compose.yml — Home Credit Default Risk API
+# Usage : docker compose up --build
+# =============================================================================
+
+services:
+
+  # ── API de scoring ──────────────────────────────────────────────────────────
+  credit-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      
+
+    image: home-credit-api:1.0.0
+
+    container_name: home-credit-api
+
+    restart: unless-stopped
+
+    ports:
+      - "7860:7860"          # port local:port conteneur (7860 avec HF Spaces, sinon 8000)
+
+    # ── Variables d'environnement ─────────────────────────────────────────────
+   
+    env_file:
+      - .env                  # contient API_KEY, MLFLOW_TRACKING_URI, MODEL_PATH
+
+    environment:
+      MLFLOW_TRACKING_URI: "file:///models/mlruns"
+      MODEL_PATH: "/models/mlruns/1/models/m-75f49439c2764e6e91a4371402c42cdc/artifacts"
+
+    # ── Volumes ────────────────────────────────────────────────────────────────
+    volumes:
+      # Monte le répertoire mlruns local en lecture seule dans le conteneur
+      - type: bind
+        source: ./mlruns          
+        target: /models/mlruns
+        read_only: true
+
+  
+    # ── Logging ────────────────────────────────────────────────────────────────
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "3"
+
+  

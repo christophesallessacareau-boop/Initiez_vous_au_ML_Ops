@@ -1,12 +1,14 @@
 
 """
 Tests de l'API FastAPI — Home Credit Default Risk
-Lancer avec : pytest test_api.py -v
+Lancer avec : pytest tests/test_api.py -v --tb=short
 """
  
 import pytest
 from unittest.mock import MagicMock, patch
+import httpx
 from fastapi.testclient import TestClient
+from api import app, app_state, API_KEY_VALUE
  
 # Patch du chargement MLflow AVANT l'import de api.py pour éviter de faire du vrai MLflow pendant les tests
 with patch("mlflow.set_tracking_uri"), \
@@ -28,10 +30,8 @@ with patch("mlflow.set_tracking_uri"), \
     ]
     mock_info_obj = MagicMock()
     mock_info_obj.signature = mock_sig
-    mock_info.return_value = mock_info_obj
- 
-    from api import app, app_state, API_KEY_VALUE
- 
+    mock_info.return_value = mock_info_obj 
+     
     # Injecter le mock dans l'état global
     app_state["model"] = mock_model
     app_state["feature_names"] = ["AMT_CREDIT", "AMT_INCOME_TOTAL", "DAYS_BIRTH", "DAYS_EMPLOYED"]
