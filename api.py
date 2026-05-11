@@ -85,7 +85,8 @@ async def lifespan(app: FastAPI):
     app_state.clear()  # nettoyage à l'arrêt
     logger.info("API arrêtée — ressources libérées.")
 
-  # APPLICATION API
+
+# APPLICATION API
 
 app = FastAPI(
     title="Home Credit Default Risk — API de scoring",
