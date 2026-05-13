@@ -1,3 +1,11 @@
+
+[![Tests API](https://github.com/christophesallessacareau-boop/Initiez_vous_au_ML_Ops/blob/main/.github/workflows/ci_cd.yml/badge.svg)](https://github.com/christophesallessacareau-boop/Initiez_vous_au_ML_Ops/blob/main/.github/workflows/ci_cd.yml)
+![Python](https://img.shields.io/badge/python-3.12-blue)
+![Tests](https://img.shields.io/badge/tests-pytest-green)
+![API](https://img.shields.io/badge/API-FastAPI-009688)
+![Docker](https://img.shields.io/badge/docker-ready-blue)  
+  
+  
 Home Credit default risk:
 Prédire la probabilité de faillite d'un client.
 
@@ -34,8 +42,9 @@ main.ipynb:
 -recherche du meilleur score (le meilleur AUC et le moindre coût) pour l'estimation de la variable cible.
 -option: données SHAP (visualisation des critères expliquant la variable cible: globalement ou par individu)
 
-# Partie 2 du projet:  
-Utilisation d'une API (FastAPI) pour prédire la solvabilité d'un client au remboursement d'un crédit; 
+# Partie 2 du projet (API + Docker + Data Drift):Confirmez vos compétences en ML  
+  
+Utilisation d'une API (FastAPI) pour prédire la solvabilité d'un client au remboursement d'un crédit;  
 main_light.upynb reprend le modele choisi (CatBoost) pour ce projet et sauvegardé dans MLflow UI;  
 API intégrée dans un conteneur Docker pour la reproductibilité du projet  
   
@@ -43,8 +52,6 @@ API intégrée dans un conteneur Docker pour la reproductibilité du projet
 Python 3.12.10  
 Docker et Docker Compose v2  
 Le répertoire `mlruns/` local avec le modèle entraîné  
-Clé API FastAPI (aléatoire de 256 bits) obtenue dans Power Shell par la commande:  
-python -c "import secrets; print(secrets.token_hex(32))"  
   
 Cloner le Repo:  
 git clone https://github.com/christophesallessacareau-boop/Initiez_vous_au_ML_Ops  
@@ -68,19 +75,37 @@ pip install -r requirements.txt
 Vider le cache pip  
 pip cache purge  
   
-## utiliser une clé avec API FastAPI:  
+## API FastAPI:  
+  
+### créer une clé sécurisée pour l'API FastAPI:  
+Clé API FastAPI (aléatoire de 256 bits) obtenue dans Power Shell par la commande:  
+python -c "import secrets; print(secrets.token_hex(32))"  
+
+### utiliser une clé avec API FastAPI:  
 pip install python-dotenv  
 dans le fichier .env (.env A RENSEIGNER dans .gitignore):  
 API_KEY=votre_clé_admin  
-Adapter le chemin du modèle dans .env :  
-MODEL_PATH=/models/mlruns/1/models/<votre_model_id>/artifacts  
+  
+Remarque: Adapter le chemin du modèle dans .env et dans le code de l'API :  
+MLFLOW_TRACKING_URI: "file:///models/mlruns"  
+MODEL_PATH="/models/mlruns/1/models/<votre_model_id>/artifacts"  
+  
+### lancer API:  
+uvicorn api:app --reload --port 8000  
+
+### docs Swagger (auto-générés):  
+http://127.0.0.1:8000/docs  
+  
 
 ## Déploiement local (développement)  
-# Build avec docker compose:  
+### Build avec docker compose:  
 docker compose up --build -d  
   
-# ou buid avec docker seul:  
+### ou buid avec docker seul:  
 docker build -t scoring-model .  
   
 Lancer le conteneur en injectant les clés depuis .env:  
-docker run -p 8000:8000 --env-file .env scoring-model 
+docker run -p 8000:8000 --env-file .env scoring-model  
+  
+## Lancer les tests unitaires:  
+pystest tests/   
