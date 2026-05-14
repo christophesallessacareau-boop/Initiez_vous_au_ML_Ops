@@ -22,10 +22,9 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copie du code source
 COPY . .
 
-# Avec le modèle MLflow 
-# pour éviter d'embarquer des gigaoctets dans l'image.
-# Créer le point de montage avec les bonnes permissions
-RUN mkdir -p /models && chown appuser:appgroup /models
+# Switcher vers l'utilisateur non-root
+# Important pour la sécurité : éviter d'exécuter l'application en tant que root
+USER appuser
 
 # Port exposé par l'API FastAPI (8000 pour l'API, 7860 pour l'interface HF Spaces)
 EXPOSE 7860
