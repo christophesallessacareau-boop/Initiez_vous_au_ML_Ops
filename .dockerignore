@@ -62,3 +62,8 @@ tests/
 README*.md
 *.rst
 CHANGELOG*
+
+# 
+mlflow.db
+mlruns/
+*.db
