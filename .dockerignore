@@ -63,7 +63,7 @@ README*.md
 *.rst
 CHANGELOG*
 
-# 
+# ── Fichiers de base de données ─────────── 
 mlflow.db
 mlruns/
 *.db
