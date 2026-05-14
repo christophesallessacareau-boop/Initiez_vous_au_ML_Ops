@@ -5,6 +5,14 @@ FROM python:3.12-slim
 # Répertoire de travail dans le conteneur
 WORKDIR /app
 
+# Créer le groupe et l'utilisateur pour exécuter l'application de manière sécurisée
+# créer le dossier et changer le propriétaire pour éviter les problèmes de permissions lors du montage du volume pour les modèles MLflow
+# Création d'un utilisateur non-root pour des raisons de sécurité
+RUN groupadd -r appgroup \
+    && useradd -r -g appgroup appuser \
+    && mkdir -p /models \
+    && chown appuser:appgroup /models
+
 # Installation des dépendances Python 
 # On copie requirements.txt EN PREMIER (optimisation cache Docker)
 # Si le code change mais pas requirements.txt → cette étape n'est pas rejouée
