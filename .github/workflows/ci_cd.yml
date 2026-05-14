@@ -101,5 +101,5 @@ jobs:
           echo " Tests passés — déploiement en cours..."
           # Exemples selon la cible :
           # Heroku  : git push heroku main
-          # Docker  : docker build -t scoring-api . && docker push registry/scoring-api
+          # Docker  : docker build -t scoring-model . && docker push registry/scoring-model
           
