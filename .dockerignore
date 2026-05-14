@@ -37,7 +37,7 @@ env/
 .virtualenv/
 
 # ── Notebooks & données ───────────────────────────────────────────────────────
-*.ipynb
+
 *.ipynb_checkpoints/
 *.csv
 *.parquet

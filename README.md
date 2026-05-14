@@ -1,5 +1,14 @@
+---
+title: ML Ops Credit Scoring
+emoji: 🐠
+colorFrom: blue
+colorTo: blue
+sdk: docker
+pinned: false
+short_description: prédire la solvabilité d'un client
+---
 
-[![Tests API](https://github.com/christophesallessacareau-boop/Initiez_vous_au_ML_Ops/blob/main/.github/workflows/ci_cd.yml/badge.svg)](https://github.com/christophesallessacareau-boop/Initiez_vous_au_ML_Ops/blob/main/.github/workflows/ci_cd.yml)
+![CI](https://github.com/christophesallessacareau-boop/Initiez_vous_au_ML_Ops/blob/main/actions/workflows/ci_cd.yml/badge.svg)
 ![Python](https://img.shields.io/badge/python-3.12-blue)
 ![Tests](https://img.shields.io/badge/tests-pytest-green)
 ![API](https://img.shields.io/badge/API-FastAPI-009688)
@@ -49,7 +58,7 @@ main_light.upynb reprend le modele choisi (CatBoost) pour ce projet et sauvegard
 API intégrée dans un conteneur Docker pour la reproductibilité du projet  
   
 ## Prérequis  
-Python 3.12.10  
+Python 3.12.8  
 Docker et Docker Compose v2  
 Le répertoire `mlruns/` local avec le modèle entraîné  
   

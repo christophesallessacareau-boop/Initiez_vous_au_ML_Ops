@@ -36,3 +36,4 @@ data/
 mlruns/
 .mlflow/
 mlflow.db
+*.db

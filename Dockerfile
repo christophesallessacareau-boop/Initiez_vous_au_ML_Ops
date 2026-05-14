@@ -12,7 +12,7 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copie du code source
-COPY api.py .
+COPY . .
 
 # Avec le modèle MLflow 
 # pour éviter d'embarquer des gigaoctets dans l'image.
