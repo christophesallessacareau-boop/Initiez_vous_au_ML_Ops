@@ -43,3 +43,7 @@ mlflow.db
 # fichier avec token HF pour création HF model
 upload_model.py
 
+model_export/model.pkl
+model_export/
+mlflow.db
+*.db
