@@ -67,3 +67,6 @@ CHANGELOG*
 mlflow.db
 mlruns/
 *.db
+
+# fichier avec HF token et création de HF modele
+upload_model.py

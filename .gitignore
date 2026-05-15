@@ -40,4 +40,6 @@ mlruns/
 mlflow.db
 *.db
 
+# fichier avec token HF pour création HF model
+upload_model.py
 
