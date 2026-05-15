@@ -45,5 +45,3 @@ upload_model.py
 
 model_export/model.pkl
 model_export/
-mlflow.db
-*.db
