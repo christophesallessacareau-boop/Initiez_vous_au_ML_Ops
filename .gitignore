@@ -22,6 +22,10 @@ data/
 *.zip
 *.pkl
 
+# Exception : modèle exporté pour le déploiement
+!model_export/model.pkl
+!model_export/threshold.txt
+
 # OS / IDE
 .vscode/
 .idea/
