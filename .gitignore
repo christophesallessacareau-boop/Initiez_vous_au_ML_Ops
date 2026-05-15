@@ -31,7 +31,6 @@ data/
 .idea/
 .DS_Store
 
-
 *.pdf
 *.tsv
 *.odp
