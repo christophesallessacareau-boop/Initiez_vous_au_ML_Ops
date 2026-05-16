@@ -45,8 +45,11 @@ logger = logging.getLogger(__name__)
 HF_TOKEN: str = os.getenv("HF_TOKEN")
 HF_MODEL_REPO: str = "ChristopheSalles31/credit-scoring-model"
 
-# Chemin du fichier SQLite (modifiable via .env)
-DB_PATH: str = os.getenv("DB_PATH", "api_logs.db")
+# Chemin SQLite : /data/ est le volume persistant (bucket) HF Spaces (read-write)
+# Bucket HF en vue privé: pas d'exposition des logs, statuts ni de la DB sur le web
+# Fallback sur /tmp/ en local si /data/ n'existe pas
+_DEFAULT_DB_PATH = "/data/api_logs.db" if os.path.isdir("/data") else "/tmp/api_logs.db"
+DB_PATH: str = os.getenv("DB_PATH", _DEFAULT_DB_PATH)
 
 # Clé API pour sécuriser les endpoints (à stocker en variable d'env / secret HF)
 API_KEY_VALUE: str = os.getenv("API_KEY")
@@ -65,20 +68,19 @@ app_state: dict = {}
 
 
 def init_db() -> None:
-    """
-    Crée la table de logs si elle n'existe pas encore.
+    db_dir = os.path.dirname(os.path.abspath(DB_PATH))
+    
+    # ── Diagnostic complet ──────────────────────────────
+    logger.info(f"DB_PATH          : {DB_PATH}")
+    logger.info(f"DB_PATH absolu   : {os.path.abspath(DB_PATH)}")
+    logger.info(f"Dossier parent   : {db_dir}")
+    logger.info(f"/data existe     : {os.path.exists('/data')}")
+    logger.info(f"/data listdir    : {os.listdir('/data') if os.path.exists('/data') else 'N/A'}")
+    logger.info(f"Ecriture /data   : {os.access('/data', os.W_OK)}")
+    # ────────────────────────────────────────────────────
 
-    Colonnes :
-        id               clé primaire auto-incrémentée
-        timestamp        date/heure UTC de l'appel (format ISO 8601)
-        endpoint         route appelée (ex: /predict)
-        http_status      code retourné (200, 422, 500…)
-        execution_ms     temps de traitement en millisecondes
-        inputs           features du client sérialisées en JSON
-        default_proba    probabilité de défaut retournée (NULL si erreur)
-        risk_level       HIGH ou LOW (NULL si erreur)
-        error_message    message d'erreur si applicable
-    """
+    os.makedirs(db_dir, exist_ok=True)
+
     with sqlite3.connect(DB_PATH) as conn:
         conn.execute("""
             CREATE TABLE IF NOT EXISTS api_logs (
