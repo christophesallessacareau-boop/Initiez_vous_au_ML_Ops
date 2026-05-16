@@ -52,9 +52,7 @@ DB_PATH: str = os.getenv("DB_PATH", "api_logs.db")
 API_KEY_VALUE: str = os.getenv("API_KEY")
 API_KEY_NAME: str = "X-API-Key"
 if not API_KEY_VALUE:
-    raise RuntimeError(
-        "Variable d'environnement API_KEY manquante. "
-    )
+    raise RuntimeError("Variable d'environnement API_KEY manquante. ")
 
 # ── modèle chargé une seule fois ───────────────────────────
 # et métadonnées chargées une seule fois au démarrage, le tout stocké en RAM
@@ -64,6 +62,7 @@ app_state: dict = {}
 
 
 # ── Base de données SQLite ────────────────────────────────────────────────────
+
 
 def init_db() -> None:
     """
@@ -139,6 +138,7 @@ def log_request(
 
 # ── Lifespan : chargement du modèle au démarrage ─────────────────────────────
 
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     logger.info("Téléchargement du modèle depuis HF Hub...")
@@ -207,24 +207,40 @@ def verify_api_key(api_key: str = Security(api_key_header)) -> str:
 
 # ── Schémas Pydantic ──────────────────────────────────────────────────────────
 
+
 class CreditFeatures(BaseModel):
     """
     Caractéristiques financières du client.
     Toutes les valeurs numériques sont validées avant la prédiction.
     Les erreurs 422 sont automatiquement documentées dans Swagger.
     """
+
     AMT_CREDIT: float = Field(..., description="Montant du crédit demandé", gt=0)
     AMT_INCOME_TOTAL: float = Field(..., description="Revenu annuel total", gt=0)
     DAYS_BIRTH: int = Field(..., description="Âge en jours (négatif)", lt=0)
     DAYS_EMPLOYED: int = Field(..., description="Ancienneté emploi en jours")
-    EXT_SOURCE_1: Optional[float] = Field(None, description="Score externe 1", ge=0, le=1)
-    EXT_SOURCE_2: Optional[float] = Field(None, description="Score externe 2", ge=0, le=1)
-    EXT_SOURCE_3: Optional[float] = Field(None, description="Score externe 3", ge=0, le=1)
+    EXT_SOURCE_1: Optional[float] = Field(
+        None, description="Score externe 1", ge=0, le=1
+    )
+    EXT_SOURCE_2: Optional[float] = Field(
+        None, description="Score externe 2", ge=0, le=1
+    )
+    EXT_SOURCE_3: Optional[float] = Field(
+        None, description="Score externe 3", ge=0, le=1
+    )
     AMT_ANNUITY: Optional[float] = Field(None, description="Annuité du crédit", gt=0)
-    AMT_GOODS_PRICE: Optional[float] = Field(None, description="Prix du bien financé", gt=0)
-    DAYS_ID_PUBLISH: Optional[int] = Field(None, description="Jours depuis renouvellement pièce identité")
-    DAYS_LAST_PHONE_CHANGE: Optional[float] = Field(None, description="Jours depuis dernier changement de téléphone")
-    CODE_GENDER_M: Optional[int] = Field(None, description="Genre masculin (1=M)", ge=0, le=1)
+    AMT_GOODS_PRICE: Optional[float] = Field(
+        None, description="Prix du bien financé", gt=0
+    )
+    DAYS_ID_PUBLISH: Optional[int] = Field(
+        None, description="Jours depuis renouvellement pièce identité"
+    )
+    DAYS_LAST_PHONE_CHANGE: Optional[float] = Field(
+        None, description="Jours depuis dernier changement de téléphone"
+    )
+    CODE_GENDER_M: Optional[int] = Field(
+        None, description="Genre masculin (1=M)", ge=0, le=1
+    )
     NAME_EDUCATION_TYPE_Higher_education: Optional[int] = Field(None, ge=0, le=1)
 
     @field_validator("DAYS_BIRTH")
@@ -236,23 +252,25 @@ class CreditFeatures(BaseModel):
             )
         return v
 
-    model_config = {"json_schema_extra": {
-        "example": {
-            "AMT_CREDIT": 500000.0,
-            "AMT_INCOME_TOTAL": 150000.0,
-            "DAYS_BIRTH": -12000,
-            "DAYS_EMPLOYED": -3000,
-            "EXT_SOURCE_1": 0.52,
-            "EXT_SOURCE_2": 0.73,
-            "EXT_SOURCE_3": 0.61,
-            "AMT_ANNUITY": 25000.0,
-            "AMT_GOODS_PRICE": 450000.0,
-            "DAYS_ID_PUBLISH": -2000,
-            "DAYS_LAST_PHONE_CHANGE": -1000,
-            "CODE_GENDER_M": 1,
-            "NAME_EDUCATION_TYPE_Higher_education": 0,
+    model_config = {
+        "json_schema_extra": {
+            "example": {
+                "AMT_CREDIT": 500000.0,
+                "AMT_INCOME_TOTAL": 150000.0,
+                "DAYS_BIRTH": -12000,
+                "DAYS_EMPLOYED": -3000,
+                "EXT_SOURCE_1": 0.52,
+                "EXT_SOURCE_2": 0.73,
+                "EXT_SOURCE_3": 0.61,
+                "AMT_ANNUITY": 25000.0,
+                "AMT_GOODS_PRICE": 450000.0,
+                "DAYS_ID_PUBLISH": -2000,
+                "DAYS_LAST_PHONE_CHANGE": -1000,
+                "CODE_GENDER_M": 1,
+                "NAME_EDUCATION_TYPE_Higher_education": 0,
+            }
         }
-    }}
+    }
 
 
 class PredictionResponse(BaseModel):
@@ -262,6 +280,7 @@ class PredictionResponse(BaseModel):
 
 
 # ── Endpoints ─────────────────────────────────────────────────────────────────
+
 
 # Redirection racine vers /docs pour plus de rapidité
 @app.get("/", include_in_schema=False)
@@ -279,6 +298,7 @@ def health():
         "model_repo": HF_MODEL_REPO,
         "threshold": app_state.get("threshold"),
     }
+
 
 # endpoint protégé par X-API-Key dans l'en-tête HTTP
 @app.get("/model-info", tags=["Monitoring"], summary="Métadonnées du modèle chargé")
@@ -319,10 +339,10 @@ def monitoring_stats():
 
         return {
             "total_predict_calls": row[0],
-            "avg_latency_ms":      row[1],
-            "max_latency_ms":      row[2],
-            "error_rate_pct":      row[3],
-            "avg_default_proba":   row[4],
+            "avg_latency_ms": row[1],
+            "max_latency_ms": row[2],
+            "error_rate_pct": row[3],
+            "avg_default_proba": row[4],
         }
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc))
@@ -406,4 +426,3 @@ def predict(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Erreur interne lors de la prédiction : {str(exc)}",
         )
-
