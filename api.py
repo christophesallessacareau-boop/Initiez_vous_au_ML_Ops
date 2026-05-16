@@ -68,18 +68,27 @@ app_state: dict = {}
 
 
 def init_db() -> None:
-    db_dir = os.path.dirname(os.path.abspath(DB_PATH))
-    
-    # ── Diagnostic complet ──────────────────────────────
-    logger.info(f"DB_PATH          : {DB_PATH}")
-    logger.info(f"DB_PATH absolu   : {os.path.abspath(DB_PATH)}")
-    logger.info(f"Dossier parent   : {db_dir}")
-    logger.info(f"/data existe     : {os.path.exists('/data')}")
-    logger.info(f"/data listdir    : {os.listdir('/data') if os.path.exists('/data') else 'N/A'}")
-    logger.info(f"Ecriture /data   : {os.access('/data', os.W_OK)}")
-    # ────────────────────────────────────────────────────
+    """
+    Crée la table de logs si elle n'existe pas encore.
 
-    os.makedirs(db_dir, exist_ok=True)
+    Colonnes :
+        id               clé primaire auto-incrémentée
+        timestamp        date/heure UTC de l'appel (format ISO 8601)
+        endpoint         route appelée (ex: /predict)
+        http_status      code retourné (200, 422, 500…)
+        execution_ms     temps de traitement en millisecondes
+        inputs           features du client sérialisées en JSON
+        default_proba    probabilité de défaut retournée (NULL si erreur)
+        risk_level       HIGH ou LOW (NULL si erreur)
+        error_message    message d'erreur si applicable
+    """
+    # Crée le dossier parent s'il n'existe pas (si/data/ non encore monté)
+    db_dir = os.path.dirname(DB_PATH)
+    if db_dir:
+        os.makedirs(db_dir, exist_ok=True)
+
+    logger.info(f"DB_PATH résolu : {DB_PATH}")
+    logger.info(f"Dossier parent accessible en écriture : {os.access(db_dir or '.', os.W_OK)}")
 
     with sqlite3.connect(DB_PATH) as conn:
         conn.execute("""
