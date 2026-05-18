@@ -3,11 +3,20 @@ Home Credit Default Risk - API de scoring
 
 Chargement du modèle depuis Hugging Face Hub au démarrage (lifespan).
 Sécurisation par API Key, validation Pydantic, gestion d'erreurs.
-Logging en base SQLite (fichier api_logs.db)
+Logging en base PostgreSQL (compatible Hugging Face Spaces + Docker).
 Enregistrement : timestamp, inputs, output, temps d'exécution, statut HTTP
 Endpoint /monitoring/stats pour un aperçu rapide
 Lancement : uvicorn api:app --reload
 Documentation Swagger automatique : http://127.0.0.1:8000/docs
+
+Dépendances à ajouter dans requirements.txt :
+    asyncpg
+    sqlalchemy[asyncio]
+
+Variables d'environnement requises :
+    API_KEY              clé d'authentification X-API-Key
+    HF_TOKEN             token Hugging Face (modèle privé)
+    DATABASE_URL         ex: postgresql+asyncpg://user:password@host:5432/dbname
 """
 
 from dotenv import load_dotenv
@@ -15,7 +24,6 @@ from dotenv import load_dotenv
 import os
 import time
 import logging
-import sqlite3
 import json
 from contextlib import asynccontextmanager
 from typing import Optional
@@ -30,13 +38,15 @@ from fastapi.security import APIKeyHeader
 from fastapi.responses import RedirectResponse
 from pydantic import BaseModel, Field, field_validator
 
+# ── SQLAlchemy async (PostgreSQL via asyncpg) ─────────────────────────────────
+from sqlalchemy import text
+from sqlalchemy.ext.asyncio import create_async_engine, AsyncEngine
+
 # ── Chargement du .env ────────────────────────────────────────────────────────
 load_dotenv()
 
 
 # ── Logging ───────────────────────────────────────────────────────────────────
-# LOGGING: INFO pour les messages Info, error, critical
-# logger__name__ pour identifier la source des logs
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
@@ -45,31 +55,31 @@ logger = logging.getLogger(__name__)
 HF_TOKEN: str = os.getenv("HF_TOKEN")
 HF_MODEL_REPO: str = "ChristopheSalles31/credit-scoring-model"
 
-# Chemin SQLite : /data/ est le volume persistant (bucket) HF Spaces (read-write)
-# Bucket HF en vue privé: pas d'exposition des logs, statuts ni de la DB sur le web
-# Fallback sur /tmp/ en local si /data/ n'existe pas
-_DEFAULT_DB_PATH = "/data/api_logs.db" if os.path.isdir("/data") else "/tmp/api_logs.db"
-DB_PATH: str = os.getenv("DB_PATH", _DEFAULT_DB_PATH)
+# DATABASE_URL doit être au format asyncpg :
+#   postgresql+asyncpg://user:password@host:5432/dbname
+# Sur Hugging Face Spaces : stocker cette valeur dans les Secrets du Space.
+DATABASE_URL: str = os.getenv("DATABASE_URL", "")
+if not DATABASE_URL:
+    raise RuntimeError(
+        "Variable d'environnement DATABASE_URL manquante. "
+        "Exemple : postgresql+asyncpg://user:password@host:5432/dbname"
+    )
 
-# Clé API pour sécuriser les endpoints (à stocker en variable d'env / secret HF)
 API_KEY_VALUE: str = os.getenv("API_KEY")
 API_KEY_NAME: str = "X-API-Key"
 if not API_KEY_VALUE:
-    raise RuntimeError("Variable d'environnement API_KEY manquante. ")
+    raise RuntimeError("Variable d'environnement API_KEY manquante.")
 
-# ── modèle chargé une seule fois ───────────────────────────
-# et métadonnées chargées une seule fois au démarrage, le tout stocké en RAM
-# recommandé par FastAPI: toutes les requêtes l’utilisent sans recharger
-# le modèle
+# État global partagé entre les requêtes (modèle + engine PostgreSQL)
 app_state: dict = {}
 
 
-# ── Base de données SQLite ────────────────────────────────────────────────────
+# ── Base de données PostgreSQL ────────────────────────────────────────────────
 
 
-def init_db() -> None:
+async def init_db(engine: AsyncEngine) -> None:
     """
-    Crée la table de logs si elle n'existe pas encore.
+    Crée la table api_logs si elle n'existe pas encore.
 
     Colonnes :
         id               clé primaire auto-incrémentée
@@ -77,38 +87,33 @@ def init_db() -> None:
         endpoint         route appelée (ex: /predict)
         http_status      code retourné (200, 422, 500…)
         execution_ms     temps de traitement en millisecondes
-        inputs           features du client sérialisées en JSON
+        inputs           features du client sérialisées en JSON (JSONB)
         default_proba    probabilité de défaut retournée (NULL si erreur)
         risk_level       HIGH ou LOW (NULL si erreur)
         error_message    message d'erreur si applicable
     """
-    # Crée le dossier parent s'il n'existe pas (si/data/ non encore monté)
-    db_dir = os.path.dirname(DB_PATH)
-    if db_dir:
-        os.makedirs(db_dir, exist_ok=True)
-
-    logger.info(f"DB_PATH résolu : {DB_PATH}")
-    logger.info(f"Dossier parent accessible en écriture : {os.access(db_dir or '.', os.W_OK)}")
-
-    with sqlite3.connect(DB_PATH) as conn:
-        conn.execute("""
-            CREATE TABLE IF NOT EXISTS api_logs (
-                id             INTEGER PRIMARY KEY AUTOINCREMENT,
-                timestamp      TEXT    NOT NULL,
-                endpoint       TEXT    NOT NULL,
-                http_status    INTEGER NOT NULL,
-                execution_ms   REAL    NOT NULL,
-                inputs         TEXT,
-                default_proba  REAL,
-                risk_level     TEXT,
-                error_message  TEXT
-            )
-        """)
-        conn.commit()
-    logger.info(f"Base SQLite initialisée : {DB_PATH}")
+    # JSONB : stockage binaire optimisé de PostgreSQL, indexable et requêtable.
+    # Plus performant que TEXT pour les inputs JSON.
+    create_table_sql = text("""
+        CREATE TABLE IF NOT EXISTS api_logs (
+            id             SERIAL PRIMARY KEY,
+            timestamp      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+            endpoint       TEXT        NOT NULL,
+            http_status    INTEGER     NOT NULL,
+            execution_ms   REAL        NOT NULL,
+            inputs         JSONB,
+            default_proba  REAL,
+            risk_level     TEXT,
+            error_message  TEXT
+        )
+    """)
+    async with engine.begin() as conn:
+        await conn.execute(create_table_sql)
+    logger.info("Table api_logs vérifiée / créée dans PostgreSQL.")
 
 
-def log_request(
+async def log_request(
+    engine: AsyncEngine,
     endpoint: str,
     http_status: int,
     execution_ms: float,
@@ -118,45 +123,63 @@ def log_request(
     error_message: str | None = None,
 ) -> None:
     """
-    Insère une ligne dans api_logs.
-    Les inputs sont sérialisés en JSON.
+    Insère une ligne dans api_logs de manière asynchrone.
     Les erreurs d'écriture sont loggées mais n'interrompent pas l'API.
+
+    Note : on passe l'engine en paramètre (plutôt que de le lire depuis
+    app_state) pour faciliter les tests unitaires avec un engine de test.
     """
+    insert_sql = text("""
+        INSERT INTO api_logs
+            (timestamp, endpoint, http_status, execution_ms,
+             inputs, default_proba, risk_level, error_message)
+        VALUES
+            (:timestamp, :endpoint, :http_status, :execution_ms,
+             :inputs, :default_proba, :risk_level, :error_message)
+    """)
     try:
-        with sqlite3.connect(DB_PATH) as conn:
-            conn.execute(
-                """
-                INSERT INTO api_logs
-                    (timestamp, endpoint, http_status, execution_ms,
-                     inputs, default_proba, risk_level, error_message)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-                """,
-                (
-                    datetime.utcnow().isoformat(),
-                    endpoint,
-                    http_status,
-                    round(execution_ms, 2),
-                    json.dumps(inputs) if inputs else None,
-                    default_proba,
-                    risk_level,
-                    error_message,
-                ),
+        async with engine.begin() as conn:
+            await conn.execute(
+                insert_sql,
+                {
+                    "timestamp": datetime.utcnow().isoformat(),
+                    "endpoint": endpoint,
+                    "http_status": http_status,
+                    "execution_ms": round(execution_ms, 2),
+                    # asyncpg accepte un dict Python pour un champ JSONB
+                    "inputs": json.dumps(inputs) if inputs else None,
+                    "default_proba": default_proba,
+                    "risk_level": risk_level,
+                    "error_message": error_message,
+                },
             )
-            conn.commit()
     except Exception as exc:
-        logger.error(f"Impossible d'écrire dans SQLite : {exc}")
+        logger.error(f"Impossible d'écrire dans PostgreSQL : {exc}")
 
 
-# ── Lifespan : chargement du modèle au démarrage ─────────────────────────────
+# ── Lifespan : chargement du modèle + init DB au démarrage ───────────────────
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    logger.info("Téléchargement du modèle depuis HF Hub...")
+    logger.info("Démarrage — chargement du modèle et initialisation DB...")
 
-    # Initialisation de la base de données au démarrage
-    init_db()
+    # Création de l'engine asyncpg une seule fois.
+    # pool_size / max_overflow peuvent être ajustés selon la charge.
+    engine = create_async_engine(
+        DATABASE_URL,
+        pool_size=5,
+        max_overflow=10,
+        pool_pre_ping=True,   # vérifie que les connexions sont vivantes
+        echo=False,           # passer à True pour déboguer les requêtes SQL
+        connect_args={"ssl": "require"},  # SSL requis par Neon
+    )
+    app_state["engine"] = engine
 
+    # Initialisation de la table (idempotent — CREATE TABLE IF NOT EXISTS)
+    await init_db(engine)
+
+    # Téléchargement du modèle depuis Hugging Face Hub
     try:
         model_path = hf_hub_download(
             repo_id=HF_MODEL_REPO,
@@ -183,8 +206,10 @@ async def lifespan(app: FastAPI):
 
     yield
 
+    # Nettoyage : fermeture propre du pool de connexions
+    await engine.dispose()
     app_state.clear()
-    logger.info("API arrêtée")
+    logger.info("API arrêtée — pool PostgreSQL fermé.")
 
 
 # ── Application FastAPI ───────────────────────────────────────────────────────
@@ -196,7 +221,7 @@ app = FastAPI(
         "à partir de ses caractéristiques financières.\n\n"
         "**Authentification** : fournir l'en-tête `X-API-Key`."
     ),
-    version="1.0.0",
+    version="2.0.0",
     lifespan=lifespan,
 )
 
@@ -230,19 +255,11 @@ class CreditFeatures(BaseModel):
     AMT_INCOME_TOTAL: float = Field(..., description="Revenu annuel total", gt=0)
     DAYS_BIRTH: int = Field(..., description="Âge en jours (négatif)", lt=0)
     DAYS_EMPLOYED: int = Field(..., description="Ancienneté emploi en jours")
-    EXT_SOURCE_1: Optional[float] = Field(
-        None, description="Score externe 1", ge=0, le=1
-    )
-    EXT_SOURCE_2: Optional[float] = Field(
-        None, description="Score externe 2", ge=0, le=1
-    )
-    EXT_SOURCE_3: Optional[float] = Field(
-        None, description="Score externe 3", ge=0, le=1
-    )
+    EXT_SOURCE_1: Optional[float] = Field(None, description="Score externe 1", ge=0, le=1)
+    EXT_SOURCE_2: Optional[float] = Field(None, description="Score externe 2", ge=0, le=1)
+    EXT_SOURCE_3: Optional[float] = Field(None, description="Score externe 3", ge=0, le=1)
     AMT_ANNUITY: Optional[float] = Field(None, description="Annuité du crédit", gt=0)
-    AMT_GOODS_PRICE: Optional[float] = Field(
-        None, description="Prix du bien financé", gt=0
-    )
+    AMT_GOODS_PRICE: Optional[float] = Field(None, description="Prix du bien financé", gt=0)
     DAYS_ID_PUBLISH: Optional[int] = Field(
         None, description="Jours depuis renouvellement pièce identité"
     )
@@ -293,7 +310,6 @@ class PredictionResponse(BaseModel):
 # ── Endpoints ─────────────────────────────────────────────────────────────────
 
 
-# Redirection racine vers /docs pour plus de rapidité
 @app.get("/", include_in_schema=False)
 def root():
     return RedirectResponse(url="/docs")
@@ -311,7 +327,6 @@ def health():
     }
 
 
-# endpoint protégé par X-API-Key dans l'en-tête HTTP
 @app.get("/model-info", tags=["Monitoring"], summary="Métadonnées du modèle chargé")
 def model_info(api_key: str = Security(verify_api_key)):
     """Retourne les informations du modèle actif (requiert X-API-Key)."""
@@ -329,25 +344,30 @@ def model_info(api_key: str = Security(verify_api_key)):
     tags=["Monitoring"],
     summary="Statistiques rapides des logs (sans authentification)",
 )
-def monitoring_stats():
+async def monitoring_stats():
     """
     Aperçu rapide en production : volume, latence moyenne, taux d'erreur.
     Pas d'authentification requise.
-    """
-    try:
-        with sqlite3.connect(DB_PATH) as conn:
-            row = conn.execute("""
-                SELECT
-                    COUNT(*)                                                         AS total_calls,
-                    ROUND(AVG(execution_ms), 1)                                      AS avg_latency_ms,
-                    ROUND(MAX(execution_ms), 1)                                      AS max_latency_ms,
-                    ROUND(AVG(CASE WHEN http_status != 200 THEN 1.0 ELSE 0.0 END) * 100, 2)
-                                                                                     AS error_rate_pct,
-                    ROUND(AVG(default_proba), 4)                                     AS avg_default_proba
-                FROM api_logs
-                WHERE endpoint = '/predict'
-            """).fetchone()
 
+    Note : endpoint async car il attend une I/O PostgreSQL.
+    """
+    stats_sql = text("""
+        SELECT
+            COUNT(*)                                                          AS total_calls,
+            ROUND(AVG(execution_ms)::numeric, 1)                             AS avg_latency_ms,
+            ROUND(MAX(execution_ms)::numeric, 1)                             AS max_latency_ms,
+            ROUND(
+                AVG(CASE WHEN http_status != 200 THEN 1.0 ELSE 0.0 END) * 100,
+                2
+            )                                                                 AS error_rate_pct,
+            ROUND(AVG(default_proba)::numeric, 4)                            AS avg_default_proba
+        FROM api_logs
+        WHERE endpoint = '/predict'
+    """)
+    try:
+        engine: AsyncEngine = app_state["engine"]
+        async with engine.connect() as conn:
+            row = (await conn.execute(stats_sql)).fetchone()
         return {
             "total_predict_calls": row[0],
             "avg_latency_ms": row[1],
@@ -372,7 +392,7 @@ def monitoring_stats():
         500: {"description": "Erreur interne lors de la prédiction"},
     },
 )
-def predict(
+async def predict(
     features: CreditFeatures,
     api_key: str = Security(verify_api_key),
 ):
@@ -382,10 +402,15 @@ def predict(
     - **risk_level** : HIGH si probabilité > seuil optimal, LOW sinon
     - **threshold_used** : seuil de décision (issu de TunedThresholdClassifierCV)
 
-    Chaque appel est enregistré dans SQLite (inputs, output, latence, statut).
+    Chaque appel est enregistré dans PostgreSQL (inputs, output, latence, statut).
+
+    Note : endpoint async pour ne pas bloquer la boucle d'événements pendant
+    l'insertion en base. predict_proba est CPU-bound et reste synchrone ;
+    pour de très fortes charges, envisager run_in_executor.
     """
     start = time.perf_counter()
     inputs_dict = features.model_dump()
+    engine: AsyncEngine = app_state["engine"]
 
     if "model" not in app_state:
         raise HTTPException(
@@ -406,7 +431,8 @@ def predict(
         risk = "HIGH" if proba > threshold else "LOW"
         execution_ms = (time.perf_counter() - start) * 1000
 
-        log_request(
+        await log_request(
+            engine=engine,
             endpoint="/predict",
             http_status=200,
             execution_ms=execution_ms,
@@ -425,7 +451,8 @@ def predict(
         raise
     except Exception as exc:
         execution_ms = (time.perf_counter() - start) * 1000
-        log_request(
+        await log_request(
+            engine=engine,
             endpoint="/predict",
             http_status=500,
             execution_ms=execution_ms,

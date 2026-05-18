@@ -45,3 +45,13 @@ upload_model.py
 
 model_export/model.pkl
 model_export/
+
+# Fichiers Java
+*.jar
+
+# Fichiers d'exemple
+*.sample
+
+# Fichiers de référence temporaires
+*-ref
+*-refs

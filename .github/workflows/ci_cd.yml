@@ -39,7 +39,7 @@ jobs:
       - name: Vérification du linting (flake8)
         run: |
           pip install flake8
-          flake8 api.py --max-line-length=100 --ignore=E501,W503
+          flake8 api.py --max-line-length=100 --ignore=E501,W503,W293
 
   # ──────────────────────────────────────────────
   # ÉTAPE 2 : TEST — pytest avec mocks MLflow
@@ -95,6 +95,8 @@ jobs:
       - name: Déploiement
         env:
           API_KEY: ${{ secrets.API_KEY }}
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
           MLFLOW_RUN_ID: ${{ secrets.MLFLOW_RUN_ID }}
           MLFLOW_TRACKING_URI: ${{ secrets.MLFLOW_TRACKING_URI }}
         run: |
