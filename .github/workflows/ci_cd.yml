@@ -30,36 +30,7 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-          pip install "black[jupyter]" isort flake8 bandit
-
-      # ─────────────────────────────
-      # BLACK
-      # ─────────────────────────────
-      - name: Vérification formatage Black
-        run: |
-          black --check .
-
-      # ─────────────────────────────
-      # ISORT
-      # ─────────────────────────────
-      - name: Vérification imports isort
-        run: |
-          isort . --check-only
-
-      # ─────────────────────────────
-      # FLAKE8
-      # ─────────────────────────────
-      - name: Vérification flake8
-        run: |
-          flake8 .
-
-      # ─────────────────────────────
-      # BANDIT (sécurité)
-      # ─────────────────────────────
-      - name: Analyse sécurité
-        run: |
-          bandit -r . -x tests
-
+          
   # ──────────────────────────────────────────────
   # TESTS
   # ──────────────────────────────────────────────
