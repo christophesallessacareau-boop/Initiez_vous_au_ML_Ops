@@ -170,8 +170,8 @@ async def lifespan(app: FastAPI):
         DATABASE_URL,
         pool_size=5,
         max_overflow=10,
-        pool_pre_ping=True,   # vérifie que les connexions sont vivantes
-        echo=False,           # passer à True pour déboguer les requêtes SQL
+        pool_pre_ping=True,  # vérifie que les connexions sont vivantes
+        echo=False,  # passer à True pour déboguer les requêtes SQL
         connect_args={"ssl": "require"},  # SSL requis par Neon
     )
     app_state["engine"] = engine
@@ -255,11 +255,19 @@ class CreditFeatures(BaseModel):
     AMT_INCOME_TOTAL: float = Field(..., description="Revenu annuel total", gt=0)
     DAYS_BIRTH: int = Field(..., description="Âge en jours (négatif)", lt=0)
     DAYS_EMPLOYED: int = Field(..., description="Ancienneté emploi en jours")
-    EXT_SOURCE_1: Optional[float] = Field(None, description="Score externe 1", ge=0, le=1)
-    EXT_SOURCE_2: Optional[float] = Field(None, description="Score externe 2", ge=0, le=1)
-    EXT_SOURCE_3: Optional[float] = Field(None, description="Score externe 3", ge=0, le=1)
+    EXT_SOURCE_1: Optional[float] = Field(
+        None, description="Score externe 1", ge=0, le=1
+    )
+    EXT_SOURCE_2: Optional[float] = Field(
+        None, description="Score externe 2", ge=0, le=1
+    )
+    EXT_SOURCE_3: Optional[float] = Field(
+        None, description="Score externe 3", ge=0, le=1
+    )
     AMT_ANNUITY: Optional[float] = Field(None, description="Annuité du crédit", gt=0)
-    AMT_GOODS_PRICE: Optional[float] = Field(None, description="Prix du bien financé", gt=0)
+    AMT_GOODS_PRICE: Optional[float] = Field(
+        None, description="Prix du bien financé", gt=0
+    )
     DAYS_ID_PUBLISH: Optional[int] = Field(
         None, description="Jours depuis renouvellement pièce identité"
     )
