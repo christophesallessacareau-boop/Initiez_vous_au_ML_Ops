@@ -8,7 +8,7 @@ pinned: false
 short_description: prédire la solvabilité d'un client
 ---
 
-![CI](https://github.com/christophesallessacareau-boop/Initiez_vous_au_ML_Ops/blob/main/actions/workflows/ci_cd.yml/badge.svg)
+![CI](https://github.com/christophesallessacareau-boop/Initiez_vous_au_ML_Ops/actions/workflows/ci_cd.yml/badge.svg)
 ![Python](https://img.shields.io/badge/python-3.12-blue)
 ![Tests](https://img.shields.io/badge/tests-pytest-green)
 ![API](https://img.shields.io/badge/API-FastAPI-009688)
