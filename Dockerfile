@@ -22,6 +22,15 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copie du code source
 COPY . .
 
+# Variables d'environnement pour rediriger le cache HF vers /tmp
+ENV HF_HOME=/tmp/hf_home
+ENV HUGGINGFACE_HUB_CACHE=/tmp/hf_home/hub
+ENV TRANSFORMERS_CACHE=/tmp/hf_home/transformers
+
+# Créer le dossier et donner les permissions à appuser AVANT de switcher
+RUN mkdir -p /tmp/hf_home/hub /tmp/hf_home/transformers \
+    && chown -R appuser:appgroup /tmp/hf_home
+
 # Switcher vers l'utilisateur non-root
 # Important pour la sécurité : éviter d'exécuter l'application en tant que root
 USER appuser
