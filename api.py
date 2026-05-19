@@ -172,7 +172,6 @@ async def lifespan(app: FastAPI):
         max_overflow=10,
         pool_pre_ping=True,  # vérifie que les connexions sont vivantes
         echo=False,  # passer à True pour déboguer les requêtes SQL
-        connect_args={"ssl": "require"},  # SSL requis par Neon
     )
     app_state["engine"] = engine
 
