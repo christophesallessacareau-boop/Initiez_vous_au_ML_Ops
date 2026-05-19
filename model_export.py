@@ -1,6 +1,6 @@
 import mlflow
 import mlflow.pyfunc
-import cloudpickle          # cloudpickle
+import cloudpickle  # cloudpickle
 import os
 from sklearn.metrics import confusion_matrix
 
@@ -22,7 +22,7 @@ best_threshold = float(getattr(inner, "best_threshold_", 0.5))
 os.makedirs("model_export", exist_ok=True)
 
 with open("model_export/model.pkl", "wb") as f:
-    cloudpickle.dump(inner, f)      # cloudpickle.dump
+    cloudpickle.dump(inner, f)  # cloudpickle.dump
 
 with open("model_export/threshold.txt", "w") as f:
     f.write(str(best_threshold))
